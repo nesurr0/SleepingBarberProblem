@@ -18,7 +18,7 @@ public class BarberShop {
             this.name = name;
         }
         Customer(){
-            name = "Парикмахер";
+            name = "Клиент";
         }
 
         public String getName() {
@@ -29,6 +29,12 @@ public class BarberShop {
         public void run() {
             try {
                 accessSeatsSem.acquire(); // Только один поток имеет доступ
+                System.out.println(getName()+" пытается занять место в очереди");
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 if(numberOfFreeSeats > 0) {
                     numberOfFreeSeats--; // декремент
                     customerSem.release(); // будим парикмахера
@@ -36,10 +42,15 @@ public class BarberShop {
                     numberOfFreeSeats++;
                     accessSeatsSem.release(); // отдаем мьютекс доступа к посадке
                     barberSem.acquire(); // ждем открытия семафора ждем стрижки
-                    // стригут клиента
+                    System.out.println(getName()+" стрижется");
+                    try {
+                        Thread.sleep(1500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 } else {
                     accessSeatsSem.release(); // отдаем мьютекс
-                    // уходим
+                    System.out.println("К сожалению мест нет и" + getName() + "уходит");
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -75,7 +86,6 @@ public class BarberShop {
                 }
                 barberSem.release(); // ждать семафор клиента для подстрижки
                 accessSeatsSem.release(); // отдать мьютекс доступа к посадке
-                System.out.println("Парикмахер стрижет -> " + names.remove());
             }
         }
     }
@@ -92,8 +102,8 @@ public class BarberShop {
         BarberShop.Barber barber = shop.new Barber();
         Thread barberTH = new Thread(barber);
         barberTH.start();
-        names = new PriorityQueue<String>(6);
-        for(int i=1;i!=7;i++){
+        names = new PriorityQueue<String>(8);
+        for(int i=1;i!=10;i++){
             Thread customerTH = new Thread(shop.new Customer("Клиент №" + i));
             customerTH.start();
             names.add("Клиент №" + i);
