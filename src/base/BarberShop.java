@@ -31,20 +31,22 @@ public class BarberShop {
                 if(numberOfFreeSeats > 0) {
                     numberOfFreeSeats--; // декремент
                     System.out.println(getName()+" занимает очередь");
+                    System.out.println("Кол-во мест:" + numberOfFreeSeats);
                     customerSem.release(); // будим парикмахера
                     Thread.sleep(1000);
                     accessSeatsSem.release(); // отдаем мьютекс доступа к посадке на место ожидания
-                    barberSem.acquire(); // ждем открытия семафора ждем стрижки
+                    barberSem.acquire(); // забираем семафор парикмахера
                     System.out.println(getName()+" стрижется");
                     try {
-                        Thread.sleep(1500);
+                        Thread.sleep(10000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    barberSem.release(); // парикмахер снова ждет клиента для подстрижки
                     System.out.println(getName() + " постригся");
                 } else {
                     accessSeatsSem.release(); // отдаем мьютекс
-                    System.out.println("К сожалению мест нет и" + getName() + "уходит");
+                    System.out.println("К сожалению мест нет и " + getName() + " уходит");
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -72,12 +74,13 @@ public class BarberShop {
         @Override
         public void run() {
             try {
-                while(flag) {
+                while(flag && barberSem.availablePermits() == 1) {
                     customerSem.acquire(); // Спит пока не придет customer
-                    accessSeatsSem.acquire(); //wait мьютекса для блокировки изменения состояния доступных клиентов
+                    accessSeatsSem.acquire(); //wait мьютекса для состояния посадки
+                    System.out.println("Освобождается место");
+                    System.out.println("Кол-во мест после:" + numberOfFreeSeats);
                     numberOfFreeSeats++;
-                    barberSem.release(); // снова ждать клиента для подстрижки
-                    accessSeatsSem.release(); // отдать мьютекс доступа к посадке
+                    accessSeatsSem.release(); // отдать мьютекс доступа к посадке;
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -93,6 +96,7 @@ public class BarberShop {
         customerSem = new Semaphore(MAX_COUNT_SITS,true);
         barberSem = new Semaphore(1,true);
         accessSeatsSem = new Semaphore(1,true);//mutex
+        customerSem.acquire(6);
         BarberShop.Barber barber = shop.new Barber();
         Thread barberTH = new Thread(barber);
         barberTH.start();
