@@ -1,12 +1,16 @@
 package base;
 
+import java.util.PriorityQueue;
 import java.util.concurrent.Semaphore;
 
 public class BarberShop {
-    private int numberOfFreeSeats;
-    private Semaphore barberSem;
-    private Semaphore customerSem;
-    private Semaphore accessSeatsSem;
+    private static int numberOfFreeSeats;
+    private static Semaphore barberSem;
+    private static Semaphore customerSem;
+    private static Semaphore accessSeatsSem;
+    private static PriorityQueue<String> names;
+    private static boolean flag;
+
     public class Customer implements Runnable{
 
         final private String name;
@@ -62,26 +66,37 @@ public class BarberShop {
 
         @Override
         public void run() {
-            try {
-                customerSem.acquire(); // Спит пока не придет customer
-                accessSeatsSem.acquire(); //wait Одноместного семафора для блокировки изменения состояния доступных клиентов
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            while(flag) {
+                try {
+                    customerSem.acquire(); // Спит пока не придет customer
+                    accessSeatsSem.acquire(); //wait Одноместного семафора для блокировки изменения состояния доступных клиентов
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                barberSem.release(); // ждать семафор клиента для подстрижки
+                accessSeatsSem.release(); // отдать мьютекс доступа к посадке
+                System.out.println("Парикмахер стрижет -> " + names.remove());
             }
-            barberSem.release(); // ждать семафор клиента для подстрижки
-            accessSeatsSem.release(); // отдать мьютекс доступа к посадке
-            //System.out.println(Парикмахер стрижет клиента);
         }
     }
 
-
-
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
+        flag = true;
+        BarberShop shop = new BarberShop();
         int MAX_COUNT_SITS = 6;
-        Semaphore customers_semaphore = new Semaphore(MAX_COUNT_SITS,true);
-        Semaphore barber_semaphore = new Semaphore(1,true);
-        Semaphore accessSeats_semaphore = new Semaphore(1,true);//mutex
-        int count_customers;
-        int numberOfFreeSeats;
+        numberOfFreeSeats = MAX_COUNT_SITS;
+        customerSem = new Semaphore(MAX_COUNT_SITS,true);
+        barberSem = new Semaphore(1,true);
+        accessSeatsSem = new Semaphore(1,true);//mutex
+        customerSem.acquire(MAX_COUNT_SITS);
+        BarberShop.Barber barber = shop.new Barber();
+        Thread barberTH = new Thread(barber);
+        barberTH.start();
+        names = new PriorityQueue<String>(6);
+        for(int i=1;i!=7;i++){
+            Thread customerTH = new Thread(shop.new Customer("Клиент №" + i));
+            customerTH.start();
+            names.add("Клиент №" + i);
+        }
     }
 }
