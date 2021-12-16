@@ -3,6 +3,7 @@ package base;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 public class BarberShop {
@@ -11,7 +12,7 @@ public class BarberShop {
     private static Semaphore customerSem;
     private static Semaphore accessSeatsSem;
     private static boolean flag;
-    private static final DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+    private static final DateFormat dateFormat = new SimpleDateFormat("mm:ss");
     public class Customer implements Runnable{
 
         final private String name;
@@ -31,22 +32,21 @@ public class BarberShop {
             try {
                 accessSeatsSem.acquire(); // Только один поток имеет доступ
                 System.out.println(dateFormat.format(new Date())+" # "+getName()+" пытается занять место в очереди");
+                //////
+                Thread.sleep(5000);
+                //////
                 if(numberOfFreeSeats > 0) {
                     numberOfFreeSeats--; // декремент
                     System.out.println(dateFormat.format(new Date())+" # "+getName()+" занимает очередь");
                     System.out.println(dateFormat.format(new Date())+" # "+"Кол-во мест:" + numberOfFreeSeats);
-                    customerSem.release(); // будим парикмахера
-                    Thread.sleep(1000);
                     accessSeatsSem.release(); // отдаем мьютекс доступа к посадке на место ожидания
                     barberSem.acquire(); // забираем семафор парикмахера
+                    customerSem.release(); // будим парикмахера
                     System.out.println(dateFormat.format(new Date())+" # "+getName()+" стрижется");
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    barberSem.release(); // парикмахер снова ждет клиента для подстрижки
+                    Thread.sleep(10000+(new Random().nextInt(20000)));
                     System.out.println(dateFormat.format(new Date())+" # "+getName() + " постригся");
+                    System.out.println(dateFormat.format(new Date())+" # "+"Освобождается кресло у парикмахера");
+                    barberSem.release(); // парикмахер снова ждет клиента для подстрижки
                 } else {
                     accessSeatsSem.release(); // отдаем мьютекс
                     System.out.println(dateFormat.format(new Date())+" # "+"К сожалению мест нет и " + getName() + " уходит");
@@ -76,17 +76,22 @@ public class BarberShop {
 
         @Override
         public void run() {
-            try {
-                while(flag && barberSem.availablePermits() == 1) {
-                    customerSem.acquire(); // Спит пока не придет customer
-                    accessSeatsSem.acquire(); //wait мьютекса для состояния посадки
-                    System.out.println(dateFormat.format(new Date())+" # "+"Освобождается место");
-                    System.out.println(dateFormat.format(new Date())+" # "+"Кол-во мест после:" + numberOfFreeSeats);
+            while(flag){
+                while(barberSem.availablePermits() == 1) {
+                    try {
+                    Thread.sleep(3000);
+                    if(customerSem.availablePermits() == 0){
+                        System.out.println(dateFormat.format(new Date())+" # "+"Парикмахер спит");
+                    }
+                        customerSem.acquire();
+                        accessSeatsSem.acquire(); //wait мьютекса для состояния посадки
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     numberOfFreeSeats++;
+                    System.out.println(dateFormat.format(new Date())+" # "+"Освободилось место в комнате ожидания:"+numberOfFreeSeats);
                     accessSeatsSem.release(); // отдать мьютекс доступа к посадке;
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
         }
     }
@@ -94,23 +99,23 @@ public class BarberShop {
     public static void main(String[] args) throws InterruptedException {
         flag = true;
         BarberShop shop = new BarberShop();
-        int MAX_COUNT_SEATS = 6;
+        int MAX_COUNT_SEATS = 3;
         numberOfFreeSeats = MAX_COUNT_SEATS;
         customerSem = new Semaphore(MAX_COUNT_SEATS,true);
         barberSem = new Semaphore(1,true);
         accessSeatsSem = new Semaphore(1,true);//mutex
-        customerSem.acquire(6);
-        BarberShop.Barber barber = shop.new Barber();
-        Thread barberTH = new Thread(barber);
-        barberTH.start();
+        customerSem.acquire(MAX_COUNT_SEATS);
+
+        new Thread(shop.new Barber()).start();
         Thread.sleep(1000);
-        for(int i=1;i!=6;i++){
-            Thread customerTH = new Thread(shop.new Customer("Клиент №" + i));
-            customerTH.start();
-            Thread.sleep(500);
+        for(int i=1;i!=3;i++){
+            new Thread(shop.new Customer("Клиент №" + i)).start();
         }
-        Thread.sleep(20000);
+        Thread.sleep(60000);
+        new Thread(shop.new Customer("Клиент №" + 3)).start();
+        Thread.sleep(100000);
         System.out.println(dateFormat.format(new Date())+" # Парикмахерская закрывается");
         System.exit(0);
+
     }
 }
