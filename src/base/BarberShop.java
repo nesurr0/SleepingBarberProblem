@@ -47,7 +47,7 @@ public class BarberShop {
                     System.out.println(dateFormat.format(new Date())+" # "+"Освободилось место в комнате ожидания:"+numberOfFreeSeats);
                     accessSeatsSem.release(); // отдать мьютекс доступа к посадке;
                     System.out.println(dateFormat.format(new Date())+" # "+getName()+" стрижется");
-                    Thread.sleep(15000);//(new Random().nextInt(20000))
+                    Thread.sleep(20000);//(new Random().nextInt(20000))
                     System.out.println(dateFormat.format(new Date())+" # "+getName() + " постригся");
                     System.out.println(dateFormat.format(new Date())+" # "+"Освобождается кресло у парикмахера");
                     barberSem.release(); // парикмахер снова ждет клиента для подстрижки
@@ -105,7 +105,7 @@ public class BarberShop {
     public static void main(String[] args) throws InterruptedException {
         flag = true;
         BarberShop shop = new BarberShop();
-        int MAX_COUNT_SEATS = 6;
+        int MAX_COUNT_SEATS = 1;
         numberOfFreeSeats = MAX_COUNT_SEATS;
         customerSem = new Semaphore(MAX_COUNT_SEATS,true);
         barberSem = new Semaphore(1,true);
@@ -114,11 +114,16 @@ public class BarberShop {
 
         new Thread(shop.new Barber()).start();
         Thread.sleep(5000);
-        for(int i=1;i!=6;i++){
+        for(int i=1;i!=3;i++){
             new Thread(shop.new Customer("Клиент №" + i)).start();
-            Thread.sleep(500);
         }
-        Thread.sleep(100000);
+        Thread.sleep(5000);
+        new Thread(shop.new Customer("Клиент №" + 3)).start();
+        Thread.sleep(15000);
+        new Thread(shop.new Customer("Клиент №" + 4)).start();
+        Thread.sleep(10000);
+        new Thread(shop.new Customer("Клиент №" + 5)).start();
+        Thread.sleep(50000);
         System.out.println(dateFormat.format(new Date())+" # Парикмахерская закрывается");
         System.exit(0);
 
